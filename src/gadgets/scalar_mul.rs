@@ -2,7 +2,8 @@
 use halo2_proofs::{
   circuit::{AssignedCell, Chip, Layouter, Region, Value},
   pasta::group::ff::Field,
-  plonk::{Error, Column, Instance, Fixed, ConstraintSystem, Selector, Advice}, poly::Rotation,
+  plonk::{Advice, Column, ConstraintSystem, Error, Fixed, Instance, Selector},
+  poly::Rotation,
 };
 
 pub use self::chip::ScalarMulChip;
@@ -178,7 +179,7 @@ mod chip {
     poly::Rotation,
   };
 
-use super::ScalarMulConfig;
+  use super::ScalarMulConfig;
 
   #[derive(Clone)]
   pub struct ScalarMulChip<F: Field> {

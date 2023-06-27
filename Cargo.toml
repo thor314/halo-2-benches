@@ -8,18 +8,17 @@ repository ="https://github.com/thor314/halo-2-benches"
 version    ="0.1.0"
 
 [dependencies]
-halo2_proofs = "0.3.0"
+halo2_proofs="0.3.0"
 
 [dev-dependencies]
 # Bench
-criterion = "0.5.1"
+criterion="0.5.1"
+rand     ="0.8.5"
 
 [[bench]]
-name = "scalar_mul"
-harness = false
+name   ="scalar_mul"
+harness=false
 
 # [[bench]]
 # name = "poseidon"
 # harness = false
-
-
