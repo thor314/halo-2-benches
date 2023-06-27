@@ -1,3 +1,5 @@
 # halo-2-benches
-A binary generated with [my cargo-generate template](github.com/thor314/tmpl). 
-You probably don't want to copy from here.
+Benchmarking a few Halo 2 simple Halo 2 circuits. For starters:
+- 1 native scalar mul
+- 1 non-native scalar mul
+- 1 execution of the Poseidon Hash (from crate halo2-gadgets)

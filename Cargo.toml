@@ -3,16 +3,23 @@ authors    =["Thor Kamphefner <thorck@pm.me>"]
 description="""playing around with halo 2 with benchmarks"""
 edition    ="2021"
 license    ="Apache2.0 OR MIT"
-name       ="halo-2-benches"
+name       ="halo_2_benches"
 repository ="https://github.com/thor314/halo-2-benches"
 version    ="0.1.0"
 
 [dependencies]
-ff = "0.13"
-group = "0.13"
 halo2_proofs = "0.3.0"
 
 [dev-dependencies]
 # Bench
-criterion = "0.4"
+criterion = "0.5.1"
+
+[[bench]]
+name = "scalar_mul"
+harness = false
+
+# [[bench]]
+# name = "poseidon"
+# harness = false
+
 
