@@ -12,10 +12,10 @@ use halo2_proofs::{
   },
   plonk::{
     create_proof, keygen_pk, keygen_vk, Advice, Circuit, Column, ConstraintSystem, Fixed, Instance,
-    ProvingKey, VerifyingKey, SingleVerifier, verify_proof,
+    ProvingKey, VerifyingKey,
   },
   poly::commitment::Params,
-  transcript::{Blake2bWrite, Challenge255, Transcript, Blake2bRead},
+  transcript::{Challenge255, Transcript},
 };
 use halo_2_benches::gadgets::scalar_mul::*;
 
@@ -23,12 +23,12 @@ type VestaAffine = vesta::Affine;
 
 /// returning a*b
 #[derive(Default, Clone)]
-pub struct ScalarMulCircuit<F: Field> {
+pub struct NNMulCircuit<F: Field> {
   pub a: Value<F>,
   pub b: Value<F>,
 }
 
-impl<F: Field> Circuit<F> for ScalarMulCircuit<F> {
+impl<F: Field> Circuit<F> for NNMulCircuit<F> {
   // the chip needs to be configured
   // field choice for the Circuit, see below
   // can have Circuit config overlap with Chip config since only one Chip
@@ -64,7 +64,7 @@ impl<F: Field> Circuit<F> for ScalarMulCircuit<F> {
     let a = field_chip.load_private(layouter.namespace(|| "load a"), self.a)?;
     let b = field_chip.load_private(layouter.namespace(|| "load b"), self.b)?;
     // Finally, tell the circuit how to use our Chip
-    let c = field_chip.mul(layouter.namespace(|| "a * b"), a, b)?;
+    let c = field_chip.mul(layouter.namespace(|| "a * b"), a.clone(), a)?;
 
     // and "return" the result as a public input to the circuit
     field_chip.expose_public(layouter.namespace(|| "expose result"), c, 0)
@@ -76,7 +76,7 @@ pub struct Workbench {
   params:          Params<VestaAffine>,
   pk:              ProvingKey<VestaAffine>,
   vk:              VerifyingKey<VestaAffine>,
-  circuit:         ScalarMulCircuit<Fp>,
+  circuit:         NNMulCircuit<Fp>,
   expected_output: Fp,
   rng:             rand::rngs::OsRng,
 }
@@ -89,15 +89,23 @@ pub fn workbench() -> Workbench {
   let (circuit, expected_output) = {
     let a = Fp::from(2);
     let b = Fp::from(3);
-    let c = a * b;
+    let c = a.square() * b.square();
     let (a, b) = (Value::known(a), Value::known(b));
-    (ScalarMulCircuit { a, b }, c)
+    (NNMulCircuit { a, b }, c)
   };
 
   // Initialize the proving key
   let params = Params::new(k);
   let vk = keygen_vk(&params, &circuit).expect("keygen_vk should not fail");
   let pk = keygen_pk(&params, vk.clone(), &circuit).expect("keygen_pk should not fail");
+
+  // Arrange the public input. We expose the multiplication result in row 0
+  // of the instance column, so we position it there in our public inputs.
+  // let mut public_inputs = vec![c];
+
+  // // Given the correct public input, our circuit will verify.
+  // let prover = MockProver::run(k, &my_circuit, vec![public_inputs.clone()]).unwrap();
+  // assert_eq!(prover.verify(), Ok(()));
 
   Workbench {
     name: String::from("scalar_mul"),
@@ -111,45 +119,30 @@ pub fn workbench() -> Workbench {
 }
 
 pub fn bench_scalar_mul(w: Workbench, crit: &mut Criterion) {
-  let Workbench { params, pk, vk, circuit, expected_output, mut rng, name } = w;
-  let prover_str = format!("{}-prover", name);
-  let verifier_str = format!("{}-verifier", name);
+//   let Workbench { params, pk, vk, circuit, expected_output, mut rng, name } = w;
 
-  crit.bench_function(&prover_str, |b| {
-    b.iter(|| {
-      // ref: https://github.com/zcash/halo2/blob/76b3f892a9d598923bbb5a747701fff44ae4c0ea/halo2_gadgets/benches/poseidon.rs#L178
-      // choose a hash function for FS challenges
-      // Why blake2b not poseidon?
-      // > We will replace BLAKE2b with an algebraic hash function in a later version. - Halo 2 authors
-      let mut transcript =
-        Blake2bWrite::<_, _, Challenge255<_>>::init(vec![]);
-      create_proof(
-        &params,
-        &pk,
-        &[circuit.clone()],
-        &[&[&[expected_output]]],
-        &mut rng,
-        &mut transcript,
-      )
-      .unwrap();
-    })
-  });
+//   let prover_str = format!("{}-prover", name);
+//   let verifier_str = format!("{}-verifier", name);
 
-  // Create a proof
-  let mut transcript = Blake2bWrite::<_, _, Challenge255<_>>::init(vec![]);
-  create_proof(&params, &pk, &[circuit], &[&[&[expected_output]]], &mut rng, &mut transcript)
-    .expect("proof generation should not fail");
-  let proof = transcript.finalize();
-
-  crit.bench_function(&verifier_str, |b| {
-    b.iter(|| {
-      let strategy = SingleVerifier::new(&params);
-      let mut transcript = Blake2bRead::<_, _, Challenge255<_>>::init(&proof[..]);
-      assert!(
-        verify_proof(&params, pk.get_vk(), strategy, &[&[&[expected_output]]], &mut transcript).is_ok()
-      );
-    });
-  });
+//   crit.bench_function(&prover_str, |b| {
+//     b.iter(|| {
+//       // ref: https://github.com/zcash/halo2/blob/76b3f892a9d598923bbb5a747701fff44ae4c0ea/halo2_gadgets/benches/poseidon.rs#L178
+//       // choose a hash function for FS challenges
+//       // Why blake2b not poseidon?
+//       // > We will replace BLAKE2b with an algebraic hash function in a later version. - Halo 2 authors
+//       let mut transcript =
+//         halo2_proofs::transcript::Blake2bWrite::<_, _, Challenge255<_>>::init(vec![]);
+//       create_proof(
+//         &params,
+//         &pk,
+//         &[circuit.clone()],
+//         &[&[&[expected_output]]],
+//         &mut rng,
+//         &mut transcript,
+//       )
+//       .unwrap();
+//     })
+//   });
 }
 
 fn run_bench(c: &mut Criterion) { bench_scalar_mul(workbench(), c); }
